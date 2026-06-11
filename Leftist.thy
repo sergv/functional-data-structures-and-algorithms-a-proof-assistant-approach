@@ -75,7 +75,7 @@ thm rank.simps(2)
 
 
 fun leaf_count :: "'a Tree \<Rightarrow> nat" where
-"leaf_count Leaf         = 1" | 
+"leaf_count Leaf         = 1" |
 "leaf_count (Node _ l r) = leaf_count l + leaf_count r"
 
 
@@ -165,7 +165,7 @@ next
 
     have 4: "2 ^ rank l + (2 ^ rank l :: nat) \<le> 2 ^ rank l + 2 ^ rank r" using l_lt_r by auto
 
-    hence 5: "2 ^ rank l + (2 ^ rank l :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank l + (2 ^ rank l :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)"] by auto 
+    hence 5: "2 ^ rank l + (2 ^ rank l :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank l + (2 ^ rank l :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)"] by auto
 
     then show ?thesis using 1 2 3 4 5 by auto
   next
@@ -181,13 +181,13 @@ next
 
     have 4: "2 ^ rank r + (2 ^ rank r :: nat) \<le> 2 ^ rank l + 2 ^ rank r" using l_ge_r by auto
 
-    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)"] by auto 
+    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)"] by auto
 
     then show ?thesis using 1 2 3 4 5 by auto
   qed
 
   thm rank_expand2[symmetric]
-  
+
   (* Glue it all together *)
   show ?case (*using expanded_le rank_expand2 size_expand *)
   proof -
