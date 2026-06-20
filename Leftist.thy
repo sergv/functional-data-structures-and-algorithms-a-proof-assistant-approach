@@ -368,7 +368,10 @@ next
 
     have 4: "2 ^ rank r + (2 ^ rank r :: nat) \<le> 2 ^ rank l + 2 ^ rank r" using leftist_node by auto
 
-    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"] by simp
+    note order = order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"]
+    thm order
+
+    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order by simp
 
     then show ?thesis using 1 2 3 4 by simp
   qed
@@ -380,6 +383,60 @@ next
     thus "2 ^ rank (Node x l r) \<le> mysize (Node x l r) + 1" by (simp only: node_size)
   qed
 qed
+
+lemma transitive_ordering:
+  fixes x :: "nat"
+  fixes y z
+  assumes "x \<le> y"
+  assumes "y \<le> z"
+  shows "x \<le> z"
+proof -
+  show ?thesis using order_trans[of "x" "y" "z"] assms by auto
+qed
+
+
+theorem size_and_rank_leftist_small_small:
+  fixes t :: "'a Tree"
+  assumes leftist_property: "is_leftist t"
+  shows "2 ^ rank t \<le> mysize t + 1"
+  using assms(1) (* put theorem assumptions into goal so that induction can affect them too *)
+proof (induction t)
+  case Leaf
+  print_cases
+  thm Leaf.prems
+  from Leaf.prems show "2 ^ rank Leaf \<le> mysize Leaf + 1"
+  proof -
+    have "rank Leaf \<equiv> 0" by (simp only: rank.simps(1))
+    hence "2 ^ rank Leaf \<equiv> 1" by simp
+    moreover have "mysize Leaf \<equiv> 0" by (simp only: mysize.simps(1))
+    ultimately show ?thesis by (simp)
+  qed
+next
+  case (Node x l r)
+  print_cases
+  have leftist_node: "rank l \<ge> rank r" using Node.prems by simp
+
+  have node_rank: "rank (Node x l r) \<equiv> rank r + 1" using leftist_node by auto
+  have node_size: "mysize (Node x l r) \<equiv> mysize l + mysize r + 1" by (simp only: mysize.simps(2))
+  have ih_combined: "2 ^ rank l + 2 ^ rank r \<le> mysize l + mysize r + 1 + 1" using Node.IH Node.prems by simp
+
+  show "2 ^ rank (Node x l r) \<le> mysize (Node x l r) + 1"
+    apply (simp only: node_rank node_size)
+  proof -
+    have "2 ^ (rank r + 1) = 2 * (2 ^ rank r)" by simp
+    hence 1: "... = 2 ^ rank r + (2 ^ rank r :: nat)" using times_two by auto
+
+    have 2: "2 ^ rank r + 2 ^ rank r \<le> 2 ^ rank l + (2 ^ rank r :: nat)" using leftist_node by auto
+
+    note order = order_trans[of "2 ^ (rank r + 1)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"]
+    thm order_trans
+    thm order
+
+    from 1 2 have "2 ^ (rank r + 1) \<le> 2 ^ rank l + (2 ^ rank r :: nat)" by simp
+    thus "2 ^ (rank r + 1) \<le> mysize l + mysize r + 1 + 1" using ih_combined order leftist_node by auto
+  qed
+qed
+
 
 
 subsection \<open>Misc\<close>
