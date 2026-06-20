@@ -69,6 +69,7 @@ fun rank :: "'a Tree \<Rightarrow> nat" where
 "rank Leaf = 0" |
 "rank (Node _ l r) = min (rank l) (rank r) + 1"
 
+thm rank.simps[no_vars]
 thm rank.simps(1)
 thm rank.simps(2)
 
@@ -78,9 +79,10 @@ fun leaf_count :: "'a Tree \<Rightarrow> nat" where
 "leaf_count Leaf         = 1" |
 "leaf_count (Node _ l r) = leaf_count l + leaf_count r"
 
+lemma size_and_leaf_count2: "leaf_count t = mysize t + 1"
+by (induction t) simp_all
 
 lemma size_and_leaf_count: "leaf_count t = mysize t + 1"
-(*by (induction t) simp_all*)
 proof (induction t)
   case Leaf
   then show ?case by simp
@@ -90,15 +92,16 @@ next
 qed
 
 
-(*
+
 lemma times_two2:
-  fixes a :: "semiring_numeral"
+  fixes a :: "nat"
   shows "2 * a = a + a"
-  using Num.semiring_numeral_class.mult_2 by auto
+proof -
+  show "2 * a = a + a" using Num.semiring_numeral_class.mult_2[of a] .
 qed
 
 thm times_two2
-*)
+
 
 
 lemma times_two:
@@ -151,6 +154,8 @@ next
   (* Show type of the local term *)
   term "2 * (2 ^ rank l)"
 
+  thm Node.IH
+
   have ih_combined: "2 ^ rank l + 2 ^ rank r \<le> mysize l + mysize r + 1 + 1" using Node.IH by simp
 
   have expanded_le: "2 ^ ((if rank l \<le> rank r then rank l else rank r) + 1) \<le> mysize l + mysize r + 1 + 1"
@@ -165,7 +170,10 @@ next
 
     have 4: "2 ^ rank l + (2 ^ rank l :: nat) \<le> 2 ^ rank l + 2 ^ rank r" using l_lt_r by auto
 
-    hence 5: "2 ^ rank l + (2 ^ rank l :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank l + (2 ^ rank l :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)"] by auto
+    thm order_trans[of "2 ^ rank l + (2 ^ rank l :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"]
+    thm ih_combined
+
+    hence 5: "2 ^ rank l + (2 ^ rank l :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank l + (2 ^ rank l :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"] by simp
 
     then show ?thesis using 1 2 3 4 5 by auto
   next
@@ -181,7 +189,7 @@ next
 
     have 4: "2 ^ rank r + (2 ^ rank r :: nat) \<le> 2 ^ rank l + 2 ^ rank r" using l_ge_r by auto
 
-    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)"] by auto
+    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"] by simp
 
     then show ?thesis using 1 2 3 4 5 by auto
   qed
@@ -214,10 +222,167 @@ type_synonym 'a Leftist = "('a \<times> nat) Tree"
 
 fun (in ord) is_heap :: "'a Tree \<Rightarrow> bool" where
 "is_heap Leaf         = True" |
-"is_heap (Node x l r) = ((\<forall> y \<in> tree_elems l \<union> tree_elems r. x \<le> y) \<and> is_heap l \<and> is_heap r)"
+"is_heap (Node x l r) = ((\<forall> y \<in> (tree_elems l \<union> tree_elems r). x \<le> y) \<and> is_heap l \<and> is_heap r)"
+
+fun is_leftist :: "'a Tree \<Rightarrow> bool" where
+"is_leftist Leaf = True" |
+"is_leftist (Node _ l r) = (rank l \<ge> rank r \<and> is_leftist l \<and> is_leftist r)"
+
+subsection \<open>Formula for leftist heaps\<close>
+
+thm Tree.induct
+
+(* theorem "2\<^bsup>(rank (Node x l r))\<^esup> \<ge> 2 ^ rank r"
+proof -
+  oops
+
+theorem "x\<^sub>y + 1 \<ge> x"
+proof -
+  oops
+
+theorem "x\<^sup>y + 1 \<ge> x"
+proof -
+  oops
+
+theorem "x\<^bsup>y + 1\<^esup> > x"
+proof -
+  oops *)
+
+thm list.split
+thm if_split
+
+theorem size_and_rank_leftist:
+  fixes t :: "'a Tree"
+  assumes leftist_property: "is_leftist t"
+  shows "2 ^ rank t \<le> mysize t + 1"
+  using assms(1) (* put theorem assumptions into goal so that induction can affect them too *)
+proof (induction t)
+  case Leaf
+  print_cases
+  thm Leaf.prems
+  from Leaf.prems show "2 ^ rank Leaf \<le> mysize Leaf + 1"
+  proof -
+    have "rank Leaf \<equiv> 0" by (simp only: rank.simps(1))
+    hence "2 ^ rank Leaf \<equiv> 1" by simp
+    moreover have "mysize Leaf \<equiv> 0" by (simp only: mysize.simps(1))
+    ultimately show ?thesis by (simp)
+  qed
+next
+  case (Node x l r)
+  print_cases
+
+  have rank_expand: "rank (Node x l r) \<equiv> min (rank l) (rank r) + 1" by (simp only: rank.simps(2))
+
+  have "min (rank l) (rank r) \<equiv> (if rank l \<le> rank r then rank l else rank r)" unfolding min_def .
+  hence rank_expand2: "rank (Node x l r) \<equiv> (if rank l \<le> rank r then rank l else rank r) + 1" by (simp only: rank_expand)
+
+  thm is_leftist.simps
+
+  have leftist_whole_node: "is_leftist (Node x l r)" using Node.prems by simp
+
+  from leftist_whole_node have leftist_l: "is_leftist l" using is_leftist.simps by simp
+  from leftist_whole_node have leftist_r: "is_leftist r" using is_leftist.simps by simp
+
+  (* hence leftist_node: "rank r \<le> rank l" by simp *)
+  from leftist_whole_node have leftist_node: "rank l \<ge> rank r" by simp
+  hence rank_expand3: "rank (Node x l r) \<equiv> rank r + 1" using rank_expand2 by auto
+
+  have size_expand: "mysize (Node x l r) \<equiv> mysize l + mysize r + 1" by (simp only: mysize.simps(2))
+
+  thm rank_expand
+
+  (* Show type of the local term *)
+  term "2 * (2 ^ rank l)"
+
+  thm Node.IH
+
+  have ih_combined: "2 ^ rank l + 2 ^ rank r \<le> mysize l + mysize r + 1 + 1" using Node.IH leftist_l leftist_r by simp
+
+  have expanded_le: "2 ^ ((if rank l \<le> rank r then rank l else rank r) + 1) \<le> mysize l + mysize r + 1 + 1"
+  proof -
+    have "(if rank l \<le> rank r then rank l else rank r) = rank r"
+    proof cases
+      assume eq: "rank l = rank r"
+      then show ?thesis by auto
+    next
+      assume "\<not> (rank l = rank r)"
+      show ?thesis using leftist_node by auto
+    qed
+    hence 1: "(if rank l \<le> rank r then rank l else rank r) \<equiv> rank r" by auto
+
+    have 2: "2 ^ (rank r + 1) \<equiv> 2 * (2 ^ rank r)" by simp
+
+    have 3: "2 * (2 ^ rank r) :: nat \<equiv> 2 ^ rank r + 2 ^ rank r" by (simp only: times_two)
+
+    have 4: "2 ^ rank r + (2 ^ rank r :: nat) \<le> 2 ^ rank l + 2 ^ rank r" using leftist_node by auto
+
+    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"] by simp
+
+    then show ?thesis using 1 2 3 4 5 by auto
+  qed
+
+  thm rank_expand2[symmetric]
+
+  (* Glue it all together *)
+  show "2 ^ rank (Node x l r) \<le> mysize (Node x l r) + 1" (*using expanded_le rank_expand2 size_expand *)
+  proof -
+    from expanded_le have "2 ^ ((if rank l \<le> rank r then rank l else rank r) + 1) \<le> mysize l + mysize r + 1 + 1" by simp
+    hence "2 ^ rank (Node x l r) \<le> mysize l + mysize r + 1 + 1" by (simp only: rank_expand2)
+    thus "2 ^ rank (Node x l r) \<le> mysize (Node x l r) + 1" by (simp only: size_expand)
+  qed
+qed
+
+theorem size_and_rank_leftist_small:
+  fixes t :: "'a Tree"
+  assumes leftist_property: "is_leftist t"
+  shows "2 ^ rank t \<le> mysize t + 1"
+  using assms(1) (* put theorem assumptions into goal so that induction can affect them too *)
+proof (induction t)
+  case Leaf
+  print_cases
+  thm Leaf.prems
+  from Leaf.prems show "2 ^ rank Leaf \<le> mysize Leaf + 1"
+  proof -
+    have "rank Leaf \<equiv> 0" by (simp only: rank.simps(1))
+    hence "2 ^ rank Leaf \<equiv> 1" by simp
+    moreover have "mysize Leaf \<equiv> 0" by (simp only: mysize.simps(1))
+    ultimately show ?thesis by (simp)
+  qed
+next
+  case (Node x l r)
+  print_cases
+  have leftist_node: "rank l \<ge> rank r" using Node.prems by simp
+
+  have node_rank: "rank (Node x l r) \<equiv> rank r + 1" using leftist_node by auto
+  have node_size: "mysize (Node x l r) \<equiv> mysize l + mysize r + 1" by (simp only: mysize.simps(2))
+
+  have ih_combined: "2 ^ rank l + 2 ^ rank r \<le> mysize l + mysize r + 1 + 1" using Node.IH Node.prems by simp
+
+  have expanded_le: "2 ^ (min (rank l) (rank r) + 1) \<le> mysize l + mysize r + 1 + 1"
+  proof -
+    have 1: "min (rank l) (rank r) = rank r" using leftist_node by auto
+
+    have 2: "2 ^ (rank r + 1) = 2 * (2 ^ rank r)" by simp
+
+    have 3: "(2 :: nat) * (2 ^ rank r) = 2 ^ rank r + 2 ^ rank r" by (simp only: times_two)
+
+    have 4: "2 ^ rank r + (2 ^ rank r :: nat) \<le> 2 ^ rank l + 2 ^ rank r" using leftist_node by auto
+
+    hence 5: "2 ^ rank r + (2 ^ rank r :: nat) \<le> mysize l + mysize r + 1 + 1" using 4 ih_combined order_trans[of "2 ^ rank r + (2 ^ rank r :: nat)" "2 ^ rank l + (2 ^ rank r :: nat)" "mysize l + mysize r + 1 + 1"] by simp
+
+    then show ?thesis using 1 2 3 4 by simp
+  qed
+
+  (* Glue it all together *)
+  show "2 ^ rank (Node x l r) \<le> mysize (Node x l r) + 1"
+  proof -
+    from expanded_le have "2 ^ rank (Node x l r) \<le> mysize l + mysize r + 1 + 1" using leftist_node node_rank by auto
+    thus "2 ^ rank (Node x l r) \<le> mysize (Node x l r) + 1" by (simp only: node_size)
+  qed
+qed
 
 
-
+subsection \<open>Misc\<close>
 
 
 fun rank_cached :: "'a Leftist \<Rightarrow> nat" where
