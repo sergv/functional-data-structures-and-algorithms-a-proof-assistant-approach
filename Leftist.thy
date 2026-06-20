@@ -73,7 +73,14 @@ thm rank.simps[no_vars]
 thm rank.simps(1)
 thm rank.simps(2)
 
+(* Like in Okasaki’s book *)
+fun rank_right :: "'a Tree \<Rightarrow> nat" where
+"rank_right Leaf = 0" |
+"rank_right (Node _ _ r) = rank_right r + 1"
 
+thm rank_right.simps[no_vars]
+thm rank_right.simps(1)
+thm rank_right.simps(2)
 
 fun leaf_count :: "'a Tree \<Rightarrow> nat" where
 "leaf_count Leaf         = 1" |
@@ -225,8 +232,13 @@ fun (in ord) is_heap :: "'a Tree \<Rightarrow> bool" where
 "is_heap (Node x l r) = ((\<forall> y \<in> (tree_elems l \<union> tree_elems r). x \<le> y) \<and> is_heap l \<and> is_heap r)"
 
 fun is_leftist :: "'a Tree \<Rightarrow> bool" where
-"is_leftist Leaf = True" |
+"is_leftist Leaf         = True" |
 "is_leftist (Node _ l r) = (rank l \<ge> rank r \<and> is_leftist l \<and> is_leftist r)"
+
+fun is_leftist_right :: "'a Tree \<Rightarrow> bool" where
+"is_leftist_right Leaf         = True" |
+"is_leftist_right (Node _ l r) = (rank_right l \<ge> rank_right r \<and> is_leftist_right l \<and> is_leftist_right r)"
+
 
 subsection \<open>Formula for leftist heaps\<close>
 
@@ -437,7 +449,78 @@ next
   qed
 qed
 
+theorem size_and_rank_leftist_right:
+  fixes t :: "'a Tree"
+  assumes leftist_property: "is_leftist_right t"
+  shows "2 ^ rank_right t \<le> mysize t + 1"
+  using assms(1) (* put theorem assumptions into goal so that induction can affect them too *)
+proof (induction t)
+  case Leaf
+  print_cases
+  thm Leaf.prems
+  from Leaf.prems show "2 ^ rank_right Leaf \<le> mysize Leaf + 1"
+  proof -
+    have "rank_right Leaf \<equiv> 0" by (simp only: rank_right.simps(1))
+    hence "2 ^ rank_right Leaf \<equiv> 1" by simp
+    moreover have "mysize Leaf \<equiv> 0" by (simp only: mysize.simps(1))
+    ultimately show ?thesis by (simp)
+  qed
+next
+  case (Node x l r)
+  print_cases
+  have leftist_node: "rank_right l \<ge> rank_right r" using Node.prems by simp
 
+  have node_rank: "rank_right (Node x l r) \<equiv> rank_right r + 1" using leftist_node by auto
+  have node_size: "mysize (Node x l r) \<equiv> mysize l + mysize r + 1" by (simp only: mysize.simps(2))
+  have ih_combined: "2 ^ rank_right l + 2 ^ rank_right r \<le> mysize l + mysize r + 1 + 1" using Node.IH Node.prems by simp
+
+  show "2 ^ rank_right (Node x l r) \<le> mysize (Node x l r) + 1"
+    apply (simp only: node_rank node_size)
+  proof -
+    have "2 ^ (rank_right r + 1) = 2 * (2 ^ rank_right r)" by simp
+    hence 1: "... = 2 ^ rank_right r + (2 ^ rank_right r :: nat)" using times_two by auto
+
+    have 2: "2 ^ rank_right r + 2 ^ rank_right r \<le> 2 ^ rank_right l + (2 ^ rank_right r :: nat)" using leftist_node by auto
+
+    note order = order_trans[of "2 ^ (rank_right r + 1)" "2 ^ rank_right l + (2 ^ rank_right r :: nat)" "mysize l + mysize r + 1 + 1"]
+    thm order_trans
+    thm order
+
+    from 1 2 have "2 ^ (rank_right r + 1) \<le> 2 ^ rank_right l + (2 ^ rank_right r :: nat)" by simp
+    thus "2 ^ (rank_right r + 1) \<le> mysize l + mysize r + 1 + 1" using ih_combined order leftist_node by auto
+  qed
+qed
+
+
+lemma alternative_rank_defs_prelim:
+  fixes t :: "'a Tree"
+  assumes "is_leftist t"
+  assumes "is_leftist_right t"
+  shows "rank t = rank_right t"
+  using assms(1)
+proof (induction t)
+  case Leaf
+  show ?case sorry
+next
+  case (Node x l r)
+  print_cases
+  show ?case sorry
+qed
+
+lemma alternative_rank_defs:
+  fixes t :: "'a Tree"
+  assumes "is_leftist t"
+  assumes "is_leftist_right t"
+  shows "rank t = rank_right t"
+  using assms(1)
+proof (induction t)
+  case Leaf
+  show ?case by simp
+next
+  case (Node x l r)
+  print_cases
+  show ?case using Node.IH Node.prems by auto
+qed
 
 subsection \<open>Misc\<close>
 
