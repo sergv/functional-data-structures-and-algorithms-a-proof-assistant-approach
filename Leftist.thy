@@ -3,6 +3,7 @@ imports
   Main
   HOL.Num
   "HOL-Library.Multiset"
+  HOL.Transcendental
 begin
 
 value "size (Node Leaf 1 (Node Leaf 2 Leaf))"
@@ -491,6 +492,64 @@ next
   qed
 qed
 
+thm log_powr_cancel [of "2" "rank_right t"]
+term "2 powr 2 :: real"
+
+lemma suc_real:
+  fixes x :: "nat"
+  shows "real x + 1 = real (Suc x)"
+proof (induction x)
+  case 0
+  then show ?case by auto
+next
+  case (Suc x)
+  then show ?case by auto
+qed
+
+lemma to_powr:
+  fixes x :: "nat"
+  shows "2 ^ x = 2 powr (real x)"
+proof (induction x)
+  case 0
+  then show ?case by auto
+next
+  case (Suc x)
+
+  print_cases
+
+  thm Suc.IH
+
+  have 1: "2 ^ (x + 1) = 2 * 2 ^ x" by auto
+
+  thm powr_mult_base[of "2" "real x"]
+
+  have "2 powr (1 + real x) = 2 * 2 powr (real x)" using powr_mult_base by auto
+  hence 2: "2 powr (real x + 1) = 2 * 2 powr (real x)" by (simp add: algebra_simps)
+
+  from Suc.IH have "2 ^ x = 2 powr (real x)" by auto
+  hence "2 * 2 ^ x = 2 * 2 powr (real x)" by auto
+  hence "2 ^ (x + 1) = 2 * 2 powr (real x)" using 1 by auto
+  hence "2 ^ (x + 1) = 2 powr (real x + 1)" using 2 by auto
+  hence "2 ^ (Suc x) = 2 powr (real x + 1)" by auto
+  thus "2 ^ (Suc x) = 2 powr (real (Suc x))" using suc_real by auto
+qed
+
+theorem size_and_rank_leftist_right_exercise:
+  fixes t :: "'a Tree"
+  assumes leftist_property: "is_leftist_right t"
+  shows "real (rank_right t) \<le> log 2 (real (mysize t) + 1)"
+proof -
+  have "2 ^ rank_right t \<le> mysize t + 1" using size_and_rank_leftist_right leftist_property by auto
+  hence "real (2 ^ rank_right t) \<le> real (mysize t + 1)" using of_nat_mono[of "2 ^ rank_right t" "mysize t + 1"] by auto
+  hence "2 powr (real (rank_right t)) \<le> real (mysize t) + 1" using to_powr by auto
+
+  hence "log 2 (2 powr (real (rank_right t))) \<le> log 2 (real (mysize t) + 1)"
+    using log_mono[of "2" "2 powr (real (rank_right t))"] by auto
+
+  hence "real (rank_right t) \<le> log 2 (real (mysize t) + 1)" by auto
+
+  thus ?thesis by auto
+qed
 
 lemma alternative_rank_defs_prelim:
   fixes t :: "'a Tree"
